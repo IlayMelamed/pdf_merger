@@ -129,6 +129,15 @@ class PdfMergerApp:
         )
         self.prev_btn.pack(side=tk.LEFT)
 
+        # Delete page button (new)
+        self.delete_btn = ttk.Button(
+            nav_frame,
+            text="Delete Page",
+            command=self._delete_current_page,
+            state=tk.DISABLED
+        )
+        self.delete_btn.pack(side=tk.LEFT, padx=(5, 0))
+
         # Page label
         self.page_label = ttk.Label(nav_frame, text="Page 0 of 0")
         self.page_label.pack(side=tk.LEFT, padx=20)
@@ -293,6 +302,27 @@ class PdfMergerApp:
         if self.pdf_viewer.reset_zoom():
             self._update_ui_state()
 
+    def _delete_current_page(self):
+        """Delete the currently displayed page from the main PDF."""
+        current_page = self.pdf_viewer.get_current_page_index()
+        total_pages = self.pdf_viewer.get_total_pages()
+        if total_pages <= 1:
+            messagebox.showerror("Error", "Cannot delete the only page in the PDF.")
+            return
+        if self.pdf_merger.delete_page(current_page):
+            # After deletion, try to stay on the same page index, but if last page was deleted, go to previous
+            new_total = self.pdf_viewer.get_total_pages() - 1
+            new_page = min(current_page, new_total - 1)
+            # Reload the PDF viewer with updated bytes
+            if self.pdf_viewer.load_pdf(pdf_bytes=self.pdf_merger.main_pdf_bytes):
+                self.pdf_viewer.display_page(new_page)
+                self.status_label.config(text=f"Deleted page {current_page + 1}.")
+                self._update_ui_state()
+            else:
+                self.status_label.config(text="Error: Failed to reload PDF after deletion.")
+        else:
+            self.status_label.config(text="Error: Could not delete page.")
+
     def _update_ui_state(self):
         """Update the state of UI elements based on the current application state."""
         has_main_pdf = self.pdf_merger.has_main_pdf()
@@ -315,6 +345,9 @@ class PdfMergerApp:
         self.zoom_in_btn.config(state=tk.NORMAL if has_main_pdf else tk.DISABLED)
         self.zoom_out_btn.config(state=tk.NORMAL if has_main_pdf else tk.DISABLED)
         self.reset_zoom_btn.config(state=tk.NORMAL if has_main_pdf else tk.DISABLED)
+
+        # Update delete button
+        self.delete_btn.config(state=tk.NORMAL if has_main_pdf and total_pages > 1 else tk.DISABLED)
 
     def _on_window_resize(self, event):
         """Handle window resize event."""

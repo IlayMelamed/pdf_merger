@@ -155,6 +155,41 @@ class PdfMerger:
             messagebox.showerror("Error", f"Failed to merge PDFs: {str(e)}")
             return None
 
+    def delete_page(self, page_index):
+        """
+        Delete the page at the given index from the main PDF.
+
+        Args:
+            page_index (int): The index of the page to delete (0-based).
+
+        Returns:
+            bool: True if the page was deleted, False otherwise.
+        """
+        if self.main_pdf_bytes is None:
+            messagebox.showerror("Error", "No main PDF loaded.")
+            return False
+        try:
+            reader = PdfReader(io.BytesIO(self.main_pdf_bytes))
+            num_pages = len(reader.pages)
+            if not (0 <= page_index < num_pages):
+                messagebox.showerror("Error", f"Page index {page_index+1} is out of range.")
+                return False
+            if num_pages == 1:
+                messagebox.showerror("Error", "Cannot delete the only page in the PDF.")
+                return False
+            writer = PdfWriter()
+            for i in range(num_pages):
+                if i != page_index:
+                    writer.add_page(reader.pages[i])
+            output = io.BytesIO()
+            writer.write(output)
+            self.main_pdf_bytes = output.getvalue()
+            self.modified = True
+            return True
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete page: {str(e)}")
+            return False
+
     def save_to_file(self, file_path):
         """
         Save the merged PDF to a file.
